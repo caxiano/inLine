@@ -9,6 +9,9 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.utils import timezone
+from decimal import Decimal
+from django.db.models import F, Count, Q
+
 from .services import (
     create_order,
     finalize_prato,
@@ -21,6 +24,7 @@ class CreatePratoAPIView(APIView):
     def post(self, request):
         nome = request.data.get("nome")
         preco = request.data.get("preco")
+        estoque=request.data.get("estoque")
 
         if not nome or not preco:
             return Response({"error": "Nome e preço são obrigatórios"}, status=400)
@@ -29,6 +33,7 @@ class CreatePratoAPIView(APIView):
             prato = Prato.objects.create(
                 nome=nome,
                 preco=preco,
+                estoque=estoque,
                 ativo=True
             )
             return Response({"id": str(prato.id), "status": "salvo"}, status=201)
@@ -39,28 +44,24 @@ class CreatePratoAPIView(APIView):
 # CRIAR PEDIDO
 # =========================
 
+# views.py
 class CreateOrderAPIView(APIView):
     def post(self, request):
-        # Captura os dados enviados pelo JavaScript
         tipo = request.data.get("tipo")
         itens = request.data.get("itens", [])
         
         try:
-            # Chama o service que cria o pedido e os itens da fila (FilaPrato)
+            # A execução atômica deve estar dentro do create_order
             pedido = create_order(tipo=tipo, itens=itens)
             
-            # Identifica o host (IP local ou URL do Codespaces)
             host = request.get_host() 
             status_url = f"http://{host}/acompanhamento/{str(pedido.id)}/"
             
-            # Retorna o JSON estruturado para o Frontend gerar o Cupom e o QR Code
             return Response({
                 "id": str(pedido.id),
                 "senha": str(pedido.id)[:4].upper(),
                 "total": float(pedido.total),
-                "tipo": pedido.tipo,
                 "status_url": status_url,
-                "criado_em": pedido.created_at.strftime("%H:%M:%S"),
                 "itens": [
                     {
                         "prato": item.prato.nome, 
@@ -69,9 +70,11 @@ class CreateOrderAPIView(APIView):
                 ]
             }, status=status.HTTP_201_CREATED)
 
+        except ValueError as e:
+            print(f"ERRO DE ESTOQUE DISPARADO: {str(e)}") # Isso aparece no terminal do Codespaces
+            return Response({"error": str(e)}, status=400)
         except Exception as e:
-            # Retorna erro amigável se algo falhar no service
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"error": "Erro interno ao processar pedido."}, status=500)
         
 # =========================
 # PRÓXIMO PEDIDO (CAIXA / FILA LÓGICA)
@@ -226,14 +229,22 @@ class FinalizarPratoView(APIView):
 
     
 # AUXILIAR: Listagem de Pratos para o Terminal de Caixa
+
 class ListPratosAPIView(APIView):
     def get(self, request):
+        # Não precisa mais de 'hoje', 'Count' ou 'annotate'
+        # Apenas pegue o valor real que está na coluna 'estoque'
         pratos = Prato.objects.filter(ativo=True)
+        
         return Response([
-            {"id": str(p.id), "nome": p.nome, "preco": float(p.preco)} 
+            {
+                "id": str(p.id), 
+                "nome": p.nome, 
+                "preco": float(p.preco), 
+                "estoque": p.estoque # <--- Use o campo puro do banco
+            } 
             for p in pratos
         ])
-
 
 # tempo médio de cada prato
 class TMADashboardAPIView(APIView):
@@ -277,7 +288,8 @@ class DashboardView(View):
         # Busca pratos e anota as contagens básicas
         metricas_pratos = Prato.objects.annotate(
             vendidos_hoje=Count('filas', filter=Q(filas__created_at__date=hoje)),
-            aguardando=Count('filas', filter=Q(filas__status='PENDENTE', filas__pedido__status='PENDENTE'))
+            aguardando=Count('filas', filter=Q(filas__status='PENDENTE', filas__pedido__status='PENDENTE')),
+            estoque_atual= F('estoque')
         ).order_by('-vendidos_hoje')
 
         for p in metricas_pratos:
@@ -352,6 +364,7 @@ class MonitorPedidosAPIView(APIView):
             print(f"--- ERRO NA API DO MONITOR: {e} ---")
             return Response({"error": str(e)}, status=500)
 
+#ALTERAR STATUS PARA RETIRADO DO PEDIDO
 class RetirarPedidoView(APIView):
     def post(self, request, pedido_id):
         try:
@@ -368,7 +381,9 @@ class RetirarPedidoView(APIView):
             
         except Exception as e:
             return Response({"error": str(e)}, status=500)
-                
+
+#DAR BAIXA DO PEDIDO FINALIZADO DO SISTEMA
+
 class BaixaEntregaView(View):
     def get(self, request):
         # 1. Pegamos os pedidos que não foram retirados ainda
@@ -386,3 +401,53 @@ class BaixaEntregaView(View):
         return render(request, 'baixa_entrega.html', {
             'pedidos_prontos': pedidos_completos
         })
+
+#Atualizar prato
+class UpdatePratoAPIView(APIView):
+    def put(self, request, prato_id):
+        try:
+            # 1. Busca o prato
+            try:
+                prato = Prato.objects.get(id=prato_id)
+            except (Prato.DoesNotExist, ValueError):
+                return Response({"error": "Prato não encontrado ou ID inválido."}, status=status.HTTP_404_NOT_FOUND)
+
+            # 2. Captura dados
+            nome = request.data.get("nome")
+            preco = request.data.get("preco")
+            estoque = request.data.get("estoque")
+            ativo = request.data.get("ativo")
+
+            # 3. Atualização Segura
+            if nome:
+                prato.nome = nome
+            
+            if preco is not None and str(preco).strip() != "":
+                try:
+                    # Converte para string, troca vírgula por ponto e vira Decimal
+                    valor_limpo = str(preco).replace(',', '.').strip()
+                    prato.preco = Decimal(valor_limpo)
+                except Exception:
+                    return Response({"error": "Formato de preço inválido."}, status=400)
+            
+            if estoque is not None and str(estoque).strip() != "":
+                prato.estoque = int(estoque)
+                
+            if ativo is not None:
+                prato.ativo = str(ativo).lower() in ['true', '1', 't', 'y', 'yes']
+
+            # 4. Salva e retorna
+            prato.save()
+
+            return Response({
+                "id": str(prato.id),
+                "status": "atualizado",
+                "nome": prato.nome,
+                "preco": str(prato.preco),
+                "estoque_atual": prato.estoque
+            }, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            # Verifique seu terminal, o erro real aparecerá aqui:
+            print(f"--- ERRO NO UPDATE: {e} ---") 
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

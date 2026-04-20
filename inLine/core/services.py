@@ -4,69 +4,48 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from uuid import UUID
 from .models import Pedido, FilaPrato, TMA, Prato
-
+from django.db.models import F
 
 # =========================
 # CAIXA
 # =========================
 
+@transaction.atomic
 def create_order(tipo, itens):
-    if not itens:
-        raise ValueError("É necessário informar ao menos um item")
+    # 1. Cria o pedido pai
+    pedido = Pedido.objects.create(tipo=tipo, total=0)
+    total_acumulado = 0
 
-    with transaction.atomic():
-        # 1. Criar pedido inicial
-        pedido = Pedido.objects.create(
-            tipo=tipo,
-            total=Decimal("0.00"),
-        )
+    for item in itens:
+        prato_id = item["prato_id"]
+        qtd = int(item["quantidade"])
 
-        # 2. Preparar dados e buscar pratos de uma vez só (Otimização)
-        try:
-            prato_ids = [UUID(str(i["prato_id"])) for i in itens]
-        except (ValueError, KeyError):
-            raise ValueError("Formato de ID de prato inválido")
+        # Buscamos o prato travando a linha (FOR UPDATE)
+        prato = Prato.objects.select_for_update().get(id=prato_id)
 
-        # Busca todos os pratos necessários em uma única query
-        pratos_db = {p.id: p for p in Prato.objects.filter(id__in=prato_ids)}
+        # BLOQUEIO: Impede estoque negativo no servidor
+        if prato.estoque < qtd:
+            raise ValueError(f"Estoque insuficiente para {prato.nome}")
+
+        # OPERAÇÃO ATÔMICA: Subtrai o estoque
+        # Se prato.save() estiver baixando 2 vezes, mude para o comando abaixo:
+        Prato.objects.filter(id=prato_id).update(estoque=F('estoque') - qtd)
         
-        filas_para_criar = []
-        total_acumulado = Decimal("0.00")
+        # Atualiza a instância na memória apenas para o cálculo do total
+        prato.refresh_from_db()
+        total_acumulado += (prato.preco * qtd)
 
-        # 3. Processar itens
-        for item in itens:
-            p_id = UUID(str(item["prato_id"]))
-            prato = pratos_db.get(p_id)
-            
-            if not prato:
-                raise ValueError(f"Prato {p_id} não encontrado")
+        # 2. Cria os itens na fila (sem mexer no estoque aqui!)
+        for _ in range(qtd):
+            FilaPrato.objects.create(
+                pedido=pedido,
+                prato=prato,
+                preco_unitario=prato.preco
+            )
 
-            quantidade = int(item.get("quantidade", 1))
-            preco_no_momento = prato.preco # Assume que seu model Prato tem o campo 'preco'
-
-            # Criar objetos FilaPrato na memória
-            for _ in range(quantidade):
-                filas_para_criar.append(
-                    FilaPrato(
-                        pedido=pedido,
-                        prato=prato,
-                        preco_unitario=preco_no_momento,
-                        status=FilaPrato.Status.PENDENTE
-                    )
-                )
-            
-            total_acumulado += (preco_no_momento * quantidade)
-
-        # 4. Persistir no banco em massa
-        FilaPrato.objects.bulk_create(filas_para_criar)
-
-        # 5. Atualizar o total do pedido
-        pedido.total = total_acumulado
-        pedido.save(update_fields=["total"])
-
-        return pedido
-
-# core/views.py ou services.py
+    pedido.total = total_acumulado
+    pedido.save()
+    return pedido
 
 # =========================
 # INICIAR PRATO

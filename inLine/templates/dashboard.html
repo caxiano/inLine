@@ -71,6 +71,11 @@
               class="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400"
             >
               Prato
+            <th
+              class="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center"
+            >
+              Estoque
+            </th>
             </th>
             <th
               class="p-6 text-[10px] font-black uppercase tracking-widest text-slate-400 text-center"
@@ -92,12 +97,18 @@
             >
               Carga Operacional
             </th>
+            
           </tr>
         </thead>
         <tbody class="divide-y divide-slate-50">
           {% for p in metricas_pratos %}
           <tr class="hover:bg-slate-50/50 transition-colors">
             <td class="p-6 font-bold text-slate-800 text-lg">{{ p.nome }}</td>
+            <td class="p-6 text-center">
+              <span class="font-black text-blue-600 text-xl"
+                >{{ p.estoque_atual }}</span
+              >
+            </td>
             <td class="p-6 text-center">
               <span class="font-black text-blue-600 text-xl"
                 >{{ p.vendidos_hoje }}</span

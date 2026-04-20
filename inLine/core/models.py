@@ -39,6 +39,7 @@ class Prato(models.Model):
     nome = models.CharField(max_length=100)
     preco = models.DecimalField(max_digits=10, decimal_places=2)
     ativo = models.BooleanField(default=True, db_index=True)
+    estoque=models.IntegerField(default=100,null=False, blank=False)
 
     class Meta:
         indexes = [

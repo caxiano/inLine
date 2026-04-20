@@ -5,7 +5,7 @@ from .views import (
     NextOrderAPIView, PainelCozinhaPratoView, 
     FinalizarPratoView,CreatePratoAPIView, TMADashboardAPIView,
     AcompanhamentoPedidoView,DashboardView, MonitorPedidosView, MonitorPedidosAPIView,
-    RetirarPedidoView,BaixaEntregaView,
+    RetirarPedidoView,BaixaEntregaView,UpdatePratoAPIView,
 )
 
 urlpatterns = [
@@ -30,5 +30,5 @@ urlpatterns = [
     path('api/v1/metrica/tma-dashboard/', TMADashboardAPIView.as_view(), name='tma'),
     path('api/v1/monitor/pedidos/', MonitorPedidosAPIView.as_view(), name='api-monitor-pedidos'),
     path('api/v1/pedidos/retirar/<uuid:pedido_id>/', RetirarPedidoView.as_view(), name='retirar-pedido'),   
-     
-]
+    path('api/v1/pratos/editar/<uuid:prato_id>/', UpdatePratoAPIView.as_view(), name='editar-prato'),
+] 
