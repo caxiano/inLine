@@ -3,24 +3,26 @@ Atendimento{% endblock %} {% block content %}
 
 <div
   id="cupom-conferencia"
-  class="hidden print:block text-black p-2 font-mono text-[10px] w-[58mm]"
+  class="hidden print:block text-black p-1 font-mono w-[58mm] mx-auto bg-white"
 >
-  <div class="text-center border-b border-black mb-2 pb-2">
-    <p class="text-[8px] uppercase font-bold">Confirmação de Entrega</p>
-    <h2 class="text-lg font-bold">PEDIDO COMPLETO</h2>
-    <h1 id="conf-senha" class="text-5xl font-black">----</h1>
+  <div class="text-center border-b-2 border-black mb-2 pb-2">
+    <p class="text-[10px] uppercase font-black tracking-widest">Conferência</p>
+    <h2 class="text-xl font-bold leading-none my-1">PEDIDO PRONTO</h2>
+    <div class="bg-black text-white py-1 my-1">
+        <h1 id="conf-senha" class="text-6xl font-black">----</h1>
+    </div>
   </div>
 
   <div class="my-4">
-    <p class="text-[8px] font-bold uppercase mb-1 underline">
-      Itens para Conferir:
+    <p class="text-[10px] font-black uppercase mb-2 border-b border-black w-max">
+      Itens no Pedido:
     </p>
-    <div id="conf-itens" class="leading-tight"></div>
+    <div id="conf-itens" class="text-[12px] font-bold leading-tight space-y-1"></div>
   </div>
 
-  <div class="border-t border-dashed border-black pt-2 text-center">
-    <p class="font-bold text-[10px]">✓ COZINHA FINALIZADA</p>
-    <p class="text-[8px] mt-1">Impresso em: {% now "H:i:s" %}</p>
+  <div class="border-t-2 border-black pt-2 text-center">
+    <p class="font-black text-[12px]">✓ TUDO CONFERIDO</p>
+    <p class="text-[9px] mt-2 italic">Saída da produção: {% now "H:i:s" %}</p>
   </div>
 </div>
 
@@ -118,18 +120,27 @@ Atendimento{% endblock %} {% block content %}
 </div>
 
 <style>
-  /* CSS PARA IMPRESSORA TÉRMICA 58mm */
   @media print {
+    /* Esconde a interface do painel */
     .no-print {
       display: none !important;
     }
+
     body {
       background: white;
+      margin: 0;
+      padding: 0;
+      display: block; /* Garante que o body não seja flex na impressão */
     }
+
     #cupom-conferencia {
       display: block !important;
       width: 58mm;
+      margin-left: auto;  /* Centraliza horizontalmente */
+      margin-right: auto; /* Centraliza horizontalmente */
+      font-family: 'Courier New', Courier, monospace !important;
     }
+
     @page {
       size: 58mm auto;
       margin: 0;
@@ -162,26 +173,26 @@ Atendimento{% endblock %} {% block content %}
   }
 
   function dispararImpressaoConferencia(pedido) {
-    // Preenche o cupom oculto
     document.getElementById("conf-senha").innerText = pedido.senha;
 
-    // Se a sua API retornar a lista de itens, preenchemos aqui.
-    // Caso contrário, deixamos um aviso para conferência na tela.
     const listaItens = document.getElementById("conf-itens");
     if (pedido.itens_resumo) {
       listaItens.innerHTML = pedido.itens_resumo
         .map(
           (item) =>
-            `<div class="flex justify-between">[ ] ${item.qtd}x ${item.nome}</div>`,
+            // Adicionado Checkbox visual e espaçamento para facilitar a leitura
+            `<div style="display: flex; border-bottom: 1px solid #eee; padding: 2px 0;">
+                <span style="margin-right: 5px;">[ ]</span>
+                <span style="flex: 1;">${item.qtd}x ${item.nome}</span>
+             </div>`,
         )
         .join("");
     } else {
-      listaItens.innerHTML = "<p>Verificar itens no painel digital.</p>";
+      listaItens.innerHTML = "<p>CONFERIR NO SISTEMA</p>";
     }
 
-    // Comando de impressão silenciosa (se o Chrome estiver em modo Kiosk)
     window.print();
-  }
+}
 
   // Inicia a verificação a cada 7 segundos
   setInterval(monitorarPedidosParaImpressao, 7000);

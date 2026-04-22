@@ -152,20 +152,19 @@ async function finalizarPedido(tipo) {
         .join("");
 
       // QR Code
-      const qrContainer = document.getElementById("qrcode-canvas");
-      if (qrContainer) {
-        qrContainer.innerHTML = "";
-        let origin = window.location.origin;
-        let linkFinal =
-          dados.status_url && !dados.status_url.includes("localhost")
-            ? dados.status_url
-            : origin + "/acompanhamento/" + dados.id + "/";
-        new QRCode(qrContainer, { text: linkFinal, width: 128, height: 128 });
-      }
+      // const qrContainer = document.getElementById("qrcode-canvas");
+      // if (qrContainer) {
+      //   qrContainer.innerHTML = "";
+      //   let origin = window.location.origin;
+      //   let linkFinal =
+      //     dados.status_url && !dados.status_url.includes("localhost")
+      //       ? dados.status_url
+      //       : origin + "/acompanhamento/" + dados.id + "/";
+      //   new QRCode(qrContainer, { text: linkFinal, width: 128, height: 128 });
+      // }
 
       setTimeout(() => {
         window.print();
-        alert("✅ Pedido realizado!");
         carrinho = {};
         renderizarCarrinho();
         carregarMenu();
@@ -174,7 +173,8 @@ async function finalizarPedido(tipo) {
       alert("❌ Erro: " + (dados.error || "Falha no servidor."));
       await carregarMenu();
     }
-  } catch (e) {
+  } 
+  catch (e) {
     console.error(e);
     alert("Erro crítico de conexão.");
   } finally {

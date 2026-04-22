@@ -60,6 +60,7 @@ class CreateOrderAPIView(APIView):
             return Response({
                 "id": str(pedido.id),
                 "senha": str(pedido.id)[:4].upper(),
+                "tipo": pedido.tipo,
                 "total": float(pedido.total),
                 "status_url": status_url,
                 "itens": [
