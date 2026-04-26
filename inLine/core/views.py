@@ -452,3 +452,21 @@ class UpdatePratoAPIView(APIView):
             # Verifique seu terminal, o erro real aparecerá aqui:
             print(f"--- ERRO NO UPDATE: {e} ---") 
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# PAINEL DE PRODUÇÃO
+
+class PainelQuantitativoProducaoAPIView(APIView):
+    def get(self, request):
+        try:
+            # Agrupa por prato e conta quantos itens PENDENTES existem 
+            # para pedidos que o atendimento já liberou (PRODUCAO)
+            producao_qs = FilaPrato.objects.filter(
+                pedido__status=Pedido.Status.PRODUCAO,
+                status=FilaPrato.Status.PENDENTE
+            ).values('prato__nome', 'prato__estoque').annotate(
+                total_produzir=Count('id')
+            ).order_by('-total_produzir')
+
+            return Response(producao_qs, status=200)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)

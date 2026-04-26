@@ -1,0 +1,108 @@
+{% extends "base.html" %} {% block content %}
+<div
+  class="bg-slate-950 min-h-[calc(100vh-64px)] p-4 text-white overflow-hidden"
+>
+  <div
+    class="flex justify-between items-center mb-6 border-b border-slate-800 pb-4"
+  >
+    <div class="flex items-center gap-6">
+      <a
+        href="{% url 'dashboard-central' %}"
+        class="bg-white text-slate-900 p-3 rounded-2xl hover:bg-blue-500 hover:text-white shadow-lg transition-all flex items-center justify-center group"
+        title="Voltar ao Painel Inicial"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-7 w-7"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+          />
+        </svg>
+      </a>
+
+      <h1 class="text-3xl font-black uppercase tracking-tighter text-amber-500">
+        Fluxo de Produção
+      </h1>
+    </div>
+
+    <div id="relogio" class="text-3xl font-mono font-bold text-slate-500">
+      00:00:00
+    </div>
+  </div>
+
+  <div
+    id="grid-producao"
+    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr"
+  ></div>
+</div>
+
+<script>
+  async function atualizarPainel() {
+    try {
+      const res = await fetch("/api/v1/producao/quantitativo/");
+      const dados = await res.json();
+      const container = document.getElementById("grid-producao");
+
+      if (dados.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full flex flex-col items-center justify-center h-[60vh] text-slate-700">
+              <svg class="w-32 h-32 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+              </svg>
+              <p class="text-3xl font-black uppercase">Cozinha Vazia</p>
+          </div>`;
+        return;
+      }
+
+      container.innerHTML = dados
+        .map(
+          (item) => `
+            <div class="bg-slate-900 border-l-4 ${item.total_produzir > 5 ? "border-red-600" : "border-amber-500"} rounded-2xl p-6 flex flex-col justify-between shadow-2xl">
+                <h2 class="text-2xl font-black uppercase truncate text-slate-100 mb-4">${item.prato__nome}</h2>
+                
+                <div class="flex justify-between items-end">
+                    <div class="flex flex-col">
+                        <span class="text-slate-500 text-xs font-bold uppercase tracking-widest">A Produzir</span>
+                        <span class="text-7xl font-black leading-none ${item.total_produzir > 0 ? "text-amber-400" : "text-slate-700"}">
+                            ${item.total_produzir}
+                        </span>
+                    </div>
+                    
+                    <div class="flex flex-col items-end">
+                        <span class="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Estoque</span>
+                        <span class="text-4xl font-black ${item.prato__estoque < 10 ? "text-red-500" : "text-slate-400"}">
+                            ${item.prato__estoque}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `,
+        )
+        .join("");
+    } catch (e) {
+      console.error("Erro ao carregar produção:", e);
+    }
+  }
+
+  setInterval(() => {
+    document.getElementById("relogio").innerText =
+      new Date().toLocaleTimeString("pt-BR");
+  }, 1000);
+
+  setInterval(atualizarPainel, 5000);
+  window.onload = atualizarPainel;
+</script>
+
+<style>
+  #grid-producao {
+    min-height: 70vh;
+  }
+</style>
+{% endblock %}
