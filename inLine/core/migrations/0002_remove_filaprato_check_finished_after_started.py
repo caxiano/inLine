@@ -9,9 +9,4 @@ class Migration(migrations.Migration):
         ("core", "0001_initial"),
     ]
 
-    operations = [
-        migrations.RemoveConstraint(
-            model_name="filaprato",
-            name="check_finished_after_started",
-        ),
-    ]
+    
