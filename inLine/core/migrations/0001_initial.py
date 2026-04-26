@@ -71,8 +71,4 @@ class Migration(migrations.Migration):
                 'indexes': [models.Index(fields=['prato', 'status', 'created_at'], name='core_filapr_prato_i_84c208_idx'), models.Index(fields=['status'], name='core_filapr_status_ccf0f5_idx'), models.Index(fields=['status', 'created_at'], name='idx_fila_prioridade'), models.Index(fields=['created_at'], name='core_filapr_created_872882_idx'), models.Index(fields=['usado_em_metrica', 'status', 'finished_at'], name='core_filapr_usado_e_a05f12_idx')],
             },
         ),
-        migrations.AddConstraint(
-            model_name='filaprato',
-            constraint=models.CheckConstraint(check=models.Q(('finished_at__gte', models.F('started_at')), ('finished_at__isnull', True), _connector='OR'), name='check_finished_after_started'),
-        ),
     ]
