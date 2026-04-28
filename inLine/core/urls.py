@@ -2,11 +2,11 @@ from django.urls import path
 from django.views.generic import TemplateView
 from .views import (
     ListPratosAPIView, CreateOrderAPIView, 
-    NextOrderAPIView, PainelCozinhaPratoView, 
+    PainelCozinhaPratoView, 
     FinalizarPratoView,CreatePratoAPIView, TMADashboardAPIView,
     AcompanhamentoPedidoView,DashboardView, MonitorPedidosView, MonitorPedidosAPIView,
     RetirarPedidoView,BaixaEntregaView,UpdatePratoAPIView,
-    PainelQuantitativoProducaoAPIView,
+    PainelQuantitativoProducaoAPIView,AtendimentoListaAPIView,
 )
 
 urlpatterns = [
@@ -20,13 +20,13 @@ urlpatterns = [
     path('monitor/', MonitorPedidosView.as_view(), name='monitor-cliente'),
     path('atendimento/baixa-entrega/', BaixaEntregaView.as_view(), name='gui-baixa-entrega'),
     path('producao/painel/', TemplateView.as_view(template_name='painel_producao.html'), name='painel-producao'),
-    
+    path('api/v1/atendimento/lista/', AtendimentoListaAPIView.as_view(), name='atendimento-lista'),    
 
     # API - O JavaScript deve usar esse prefixo
     path('api/v1/pratos/', ListPratosAPIView.as_view()),
     path('api/v1/pratos/criar/', CreatePratoAPIView.as_view(), name='api_criar_prato'),
     path('api/v1/pedidos/criar/', CreateOrderAPIView.as_view()),
-    path('api/v1/fila/proximo/', NextOrderAPIView.as_view(), name='proximo_pedido'),
+    path('api/v1/fila/proximo/', AtendimentoListaAPIView.as_view(), name='proximo_pedido'),
     path('api/v1/fila/painel/', PainelCozinhaPratoView.as_view(), name='painel-cozinha'),
     path('api/v1/fila/finalizar/<uuid:id>/', FinalizarPratoView.as_view(), name='finalizar-prato'),
     path('api/v1/metrica/tma-dashboard/', TMADashboardAPIView.as_view(), name='tma'),
@@ -34,4 +34,4 @@ urlpatterns = [
     path('api/v1/pedidos/retirar/<uuid:pedido_id>/', RetirarPedidoView.as_view(), name='retirar-pedido'),   
     path('api/v1/pratos/editar/<uuid:prato_id>/', UpdatePratoAPIView.as_view(), name='editar-prato'),
     path('api/v1/producao/quantitativo/', PainelQuantitativoProducaoAPIView.as_view()),
-] 
+    path('api/v1/atendimento/lista/<uuid:pedido_id>/', AtendimentoListaAPIView.as_view(), name='atendimento-acao'),] 

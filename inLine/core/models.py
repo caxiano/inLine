@@ -18,6 +18,7 @@ class Pedido(models.Model):
         PRODUCAO = "PRODUCAO"
         FINALIZADO = "FINALIZADO"
         RETIRADO = "RETIRADO"
+        CANCELADO="CANCELADO"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     tipo = models.CharField(max_length=20, choices=Tipo.choices, db_index=True)
@@ -58,6 +59,7 @@ class FilaPrato(models.Model):
         EM_PRODUCAO = "EM_PRODUCAO"
         FINALIZADO = "FINALIZADO"
         RETIRADO = "RETIRADO"
+        CANCELADO="CANCELADO"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name="filas")

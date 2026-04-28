@@ -81,76 +81,158 @@ class CreateOrderAPIView(APIView):
 # PRÓXIMO PEDIDO (CAIXA / FILA LÓGICA)
 # =========================
 
-class NextOrderAPIView(APIView):
-    def get(self, request):
-        """Lista pedidos pendentes respeitando a prioridade de festival"""
-        try:
-            # Ordenação prioritária: Preferencial primeiro, depois os mais antigos
-            pedidos = Pedido.objects.filter(
-                status=Pedido.Status.PENDENTE
-            ).order_by(
-                models.Case(
-                    models.When(tipo=Pedido.Tipo.PREFERENCIAL, then=models.Value(0)),
-                    default=models.Value(1)
-                ),
-                "created_at"
-            )[:10]
+# class NextOrderAPIView(APIView):
+#     def get(self, request):
+#         """Lista pedidos pendentes respeitando a prioridade de festival"""
+#         try:
+#             # Ordenação prioritária: Preferencial primeiro, depois os mais antigos
+#             pedidos = Pedido.objects.filter(
+#                 status=Pedido.Status.PENDENTE
+#             ).order_by(
+#                 models.Case(
+#                     models.When(tipo=Pedido.Tipo.PREFERENCIAL, then=models.Value(0)),
+#                     default=models.Value(1)
+#                 ),
+#                 "created_at"
+#             )[:10]
 
-            data = []
-            for p in pedidos:
-                data.append({
-                    "pedido_id": str(p.id), # O JS espera 'pedido_id'
-                    "tipo": p.tipo,
-                    "criado_em": p.created_at.strftime("%H:%M")
-                })
+#             data = []
+#             for p in pedidos:
+#                 data.append({
+#                     "pedido_id": str(p.id), # O JS espera 'pedido_id'
+#                     "tipo": p.tipo,
+#                     "criado_em": p.created_at.strftime("%H:%M")
+#                 })
             
-            if not data:
-                return Response(status=status.HTTP_204_NO_CONTENT)
+#             if not data:
+#                 return Response(status=status.HTTP_204_NO_CONTENT)
                 
-            return Response(data, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": str(e)}, status=500)
+#             return Response(data, status=status.HTTP_200_OK)
+#         except Exception as e:
+#             return Response({"error": str(e)}, status=500)
 
-    @transaction.atomic
-    def post(self, request):
-        pedido = Pedido.objects.filter(
-            status=Pedido.Status.PENDENTE
-        ).order_by(
+#     @transaction.atomic
+#     def post(self, request):
+#         pedido = Pedido.objects.filter(
+#             status=Pedido.Status.PENDENTE
+#         ).order_by(
+#             models.Case(
+#                 models.When(tipo=Pedido.Tipo.PREFERENCIAL, then=models.Value(0)),
+#                 default=models.Value(1)
+#             ),
+#             "created_at"
+#         ).select_for_update().first()
+
+#         if not pedido:
+#             return Response(status=status.HTTP_204_NO_CONTENT)
+
+#         # 1. Geramos a senha a partir dos primeiros 4 dígitos do UUID (em maiúsculo)
+#         senha_gerada = str(pedido.id).split('-')[0][:4].upper()
+
+#         # 2. Buscamos os itens na FilaPrato
+#         itens_qs = FilaPrato.objects.filter(pedido=pedido).values('prato__nome').annotate(
+#             qtd=models.Count('id')
+#         )
+        
+#         itens_formatados = [
+#             {"nome": item['prato__nome'], "quantidade": item['qtd']} 
+#             for item in itens_qs
+#         ]
+
+#         pedido.status = Pedido.Status.PRODUCAO
+#         pedido.save(update_fields=['status'])
+
+#         return Response({
+#             "pedido_id": str(pedido.id),
+#             "senha": senha_gerada,  # Enviamos a senha pronta para o JS
+#             "tipo": pedido.tipo,
+#             "itens": itens_formatados,
+#             "total_itens": sum(item['qtd'] for item in itens_qs),
+#             "hora_impressao": timezone.now().strftime("%H:%M")
+#         }, status=status.HTTP_200_OK)
+
+# =========================
+# LISTA DE PEDIDOS (CAIXA / FILA LÓGICA)
+# =========================
+
+# views.py
+class AtendimentoListaAPIView(APIView):
+    def get(self, request, pedido_id=None):
+        hoje = timezone.localtime(timezone.now()).date()
+        
+        queryset = Pedido.objects.filter(
+            created_at__date=hoje
+        ).prefetch_related('filas__prato').order_by(
             models.Case(
-                models.When(tipo=Pedido.Tipo.PREFERENCIAL, then=models.Value(0)),
+                models.When(tipo='PREFERENCIAL', then=models.Value(0)),
                 default=models.Value(1)
             ),
-            "created_at"
-        ).select_for_update().first()
-
-        if not pedido:
-            return Response(status=status.HTTP_204_NO_CONTENT)
-
-        # 1. Geramos a senha a partir dos primeiros 4 dígitos do UUID (em maiúsculo)
-        senha_gerada = str(pedido.id).split('-')[0][:4].upper()
-
-        # 2. Buscamos os itens na FilaPrato
-        itens_qs = FilaPrato.objects.filter(pedido=pedido).values('prato__nome').annotate(
-            qtd=models.Count('id')
+            '-created_at' 
         )
-        
-        itens_formatados = [
-            {"nome": item['prato__nome'], "quantidade": item['qtd']} 
-            for item in itens_qs
-        ]
 
-        pedido.status = Pedido.Status.PRODUCAO
-        pedido.save(update_fields=['status'])
+        search = request.GET.get('search')
+        if search:
+            queryset = queryset.filter(id__icontains=search)
 
-        return Response({
-            "pedido_id": str(pedido.id),
-            "senha": senha_gerada,  # Enviamos a senha pronta para o JS
-            "tipo": pedido.tipo,
-            "itens": itens_formatados,
-            "total_itens": sum(item['qtd'] for item in itens_qs),
-            "hora_impressao": timezone.now().strftime("%H:%M")
-        }, status=status.HTTP_200_OK)
-    
+        status_filter = request.GET.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+
+        data = []
+        for p in queryset:
+            # AGRUPAMENTO: Agrupa itens iguais e conta a quantidade
+            itens_agrupados = p.filas.values(
+                'prato__nome', 
+                'preco_unitario'
+            ).annotate(
+                quantidade=Count('id')
+            )
+
+            data.append({
+                "id": str(p.id),
+                "senha": str(p.id).split('-')[0][:4].upper(),
+                "tipo": p.tipo,
+                "status": p.status,
+                "total": float(p.total),
+                "criado_em": timezone.localtime(p.created_at).strftime("%H:%M"),
+                "itens": [
+                    {
+                        "nome": item['prato__nome'],
+                        "qtd": item['quantidade'],
+                        "preco": float(item['preco_unitario']),
+                        "subtotal": float(item['preco_unitario'] * item['quantidade'])
+                    } for item in itens_agrupados
+                ]
+            })
+        return Response(data)
+    @transaction.atomic
+    def post(self, request, pedido_id):
+        acao = request.data.get("acao")
+        # Busca o pedido com trava de linha (select_for_update)
+        pedido = get_object_or_404(Pedido.objects.select_for_update(), id=pedido_id)
+
+        if acao == "PRODUCAO":
+            # 1. Atualiza o status do pedido pai
+            # Forçamos a string exata que o banco espera
+            pedido.status = "PRODUCAO" 
+            pedido.save(update_fields=['status'])
+
+            # 2. Atualiza todos os itens da FilaPrato vinculados a este pedido
+            # Isso 'libera' os itens para aparecerem no PainelCozinhaPratoView
+            pedido.filas.all().update(
+                status="PENDENTE",
+                created_at=timezone.now() # Reset do tempo para a fila da cozinha
+            )
+
+            return Response({"status": "sucesso", "msg": "Pedido enviado para a cozinha"})
+
+        elif acao == "CANCELAR":
+            pedido.status = "CANCELADO"
+            pedido.save(update_fields=['status'])
+            pedido.filas.all().update(status="CANCELADO")
+            return Response({"status": "sucesso"})
+
+        return Response({"error": "Ação inválida"}, status=400)
 # =========================
 # PAINEL DA COZINHA POR PRATO
 # =========================
@@ -453,7 +535,7 @@ class UpdatePratoAPIView(APIView):
             print(f"--- ERRO NO UPDATE: {e} ---") 
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-# PAINEL DE PRODUÇÃO
+# PAINEL DE PRODUÇÃO QUANTITATIVO
 
 class PainelQuantitativoProducaoAPIView(APIView):
     def get(self, request):
