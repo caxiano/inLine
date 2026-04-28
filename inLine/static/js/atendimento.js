@@ -93,40 +93,45 @@ function reimprimirCaixa(id) {
   const p = pedidosData.find((x) => x.id === id);
   if (!p) return;
 
-  // 1. Controle de Visibilidade: Esconde conferência, mostra cliente
-  const cupomConf = document.getElementById("cupom-conferencia");
-  const cupomCli = document.getElementById("cupom-cliente");
+  // 1. Visibilidade
+  const cli = document.getElementById("cupom-cliente");
+  const conf = document.getElementById("cupom-conferencia");
+  conf.classList.add("hidden");
+  cli.classList.remove("hidden");
 
-  cupomConf.classList.add("hidden");
-  cupomConf.classList.remove("print:block");
-
-  cupomCli.classList.remove("hidden");
-  cupomCli.classList.add("print:block");
-
-  // 2. Preenchimento (IDs cli-...)
+  // 2. Preenchimento de Dados (Sincronizado com o que a API do Atendimento envia)
   document.getElementById("cli-senha").innerText = p.senha;
-  document.getElementById("cli-data").innerText = p.criado_em;
-  document.getElementById("cli-tipo").innerText = p.tipo;
-  document.getElementById("cli-total").innerText = `R$ ${p.total.toFixed(2)}`;
 
+  // IMPORTANTE: Se p.criado_em estiver vazio, usa a hora atual como fallback (igual no seu Caixa)
+  document.getElementById("cli-data").innerText =
+    p.criado_em || new Date().toLocaleTimeString();
+
+  document.getElementById("cli-tipo").innerText = p.tipo || "NORMAL";
+  document.getElementById("cli-total").innerText =
+    `R$ ${parseFloat(p.total).toFixed(2)}`;
+
+  // 3. Itens (Formato de tabela <tr><td>)
   const corpoItens = document.getElementById("cli-itens-corpo");
   corpoItens.innerHTML = p.itens
     .map(
       (item) => `
-        <tr class="text-base">
+        <tr>
             <td class="py-1">${item.qtd}x ${item.nome}</td>
-            <td class="text-right font-bold">R$ ${item.subtotal.toFixed(2)}</td>
+            <td class="text-right">R$ ${parseFloat(item.subtotal).toFixed(2)}</td>
         </tr>
     `,
     )
     .join("");
 
-  dispararComandoImpressao();
+  // 4. Impressão
+  setTimeout(() => {
+    window.print();
+    cli.classList.add("hidden");
+  }, 250);
 }
 function dispararImpressaoFisica(p) {
-  // 1. Garante que o cupom de 80mm esteja escondido para não imprimir lixo
-  document.getElementById("cupom-cliente").classList.add("hidden");
-
+  const cupomCli = document.getElementById("cupom-cliente");
+  const cupomConf = document.getElementById("cupom-conferencia");
   const confSenha = document.getElementById("conf-senha");
   const confItens = document.getElementById("conf-itens");
 
@@ -135,68 +140,68 @@ function dispararImpressaoFisica(p) {
     return;
   }
 
-  // Preenche os dados (conforme já fizemos)
-  confSenha.innerText = p.senha;
-  // ... lógica dos itens ...
-  const listaItens = p.itens || p.itens_resumo || [];
+  // 1. PROTOCOLO DE VISIBILIDADE:
+  // Esconde o de 80mm e libera o de 58mm para o motor de impressão
+  cupomCli.classList.add("hidden");
+  cupomConf.classList.remove("hidden");
 
+  // 2. PREENCHIMENTO DOS DADOS
+  confSenha.innerText = p.senha;
+
+  const listaItens = p.itens || p.itens_resumo || [];
   const itensHTML = listaItens
     .map((i) => {
-      // Tenta pegar 'qtd' (da lista) ou 'quantidade' (do monitor/caixa)
       const quantidade = i.qtd || i.quantidade || 1;
       const nome = i.nome || i.prato_nome || "Item";
 
       return `
-            <div style="display: flex; align-items: flex-start; border-bottom: 1px solid #000; padding: 6px 0;">
-                <span style="margin-right: 8px; font-size: 20px;">[ ]</span>
-                <span style="flex: 1;">${quantidade}x ${nome}</span>
-            </div>`;
+      <div style="display: flex; align-items: flex-start; border-bottom: 1px solid #000; padding: 6px 0;">
+        <span style="margin-right: 8px; font-size: 20px;">[ ]</span>
+        <span style="flex: 1; font-size: 18px; font-weight: bold;">${quantidade}x ${nome}</span>
+      </div>`;
     })
     .join("");
 
   confItens.innerHTML = itensHTML;
 
-  // Dispara a impressão
+  // 3. DISPARO DA IMPRESSÃO
   setTimeout(() => {
     window.print();
+
+    // 4. RESET: Esconde novamente para não vazar na tela após o print
+    cupomConf.classList.add("hidden");
   }, 300);
 }
 function reimprimirConferencia(id) {
   const p = pedidosData.find((x) => x.id === id);
   if (!p) return;
 
-  // 1. Controle de Visibilidade: Esconde cliente, mostra conferência
-  const cupomConf = document.getElementById("cupom-conferencia");
-  const cupomCli = document.getElementById("cupom-cliente");
+  const cli = document.getElementById("cupom-cliente");
+  const conf = document.getElementById("cupom-conferencia");
 
-  cupomCli.classList.add("hidden");
-  cupomCli.classList.remove("print:block");
-
-  cupomConf.classList.remove("hidden");
-  cupomConf.classList.add("print:block");
-
-  // 2. Preenchimento (IDs conf-...) conforme seu HTML de 58mm
+  // 1. Prepara os dados
   document.getElementById("conf-senha").innerText = p.senha;
 
-  const confItens = document.getElementById("conf-itens");
-  confItens.innerHTML = p.itens
-    .map((item) => {
-      const quantidade = item.qtd || item.quantidade || 1;
-      return `
-            <div style="display: flex; align-items: flex-start; border-bottom: 1px solid #000; padding: 6px 0;">
-                <span style="margin-right: 8px; font-size: 20px;">[ ]</span>
-                <span style="flex: 1; font-size: 18px;">${quantidade}x ${item.nome}</span>
-            </div>`;
-    })
+  // 2. Itens de conferência
+  document.getElementById("conf-itens").innerHTML = p.itens
+    .map(
+      (item) => `
+        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 4px 0;">
+            <span style="font-size: 18px;">[ ] ${item.qtd || item.quantidade}x ${item.nome}</span>
+        </div>
+    `,
+    )
     .join("");
 
-  dispararComandoImpressao();
-}
+  // 3. Alterna as classes
+  cli.classList.add("hidden"); // Esconde caixa
+  conf.classList.remove("hidden"); // Mostra conferência
 
-function dispararComandoImpressao() {
+  // 4. Imprime
   setTimeout(() => {
     window.print();
-  }, 300);
+    conf.classList.add("hidden"); // Esconde após abrir a janela de print
+  }, 250);
 }
 
 async function alterarStatus(id, acao) {

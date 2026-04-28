@@ -1,7 +1,16 @@
 {% extends "base.html" %} {% load static %} {% block content %}
 <style>
+  /* CONFIGURAÇÃO DE TELA (Invisível para o usuário) */
+  #cupom-cliente,
+  #cupom-conferencia {
+    position: fixed;
+    top: -9999px;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+  }
+
   @media print {
-    /* Esconde a interface de gerenciamento */
     .no-print,
     nav,
     footer,
@@ -15,10 +24,25 @@
       padding: 0 !important;
     }
 
-    /* Força cores e bordas na térmica */
+    /* O SEGREDO 1: Propriedade para forçar o fundo preto na impressora */
     * {
       -webkit-print-color-adjust: exact !important;
       print-color-adjust: exact !important;
+    }
+
+    /* O SEGREDO 2: Só exibe se NÃO estiver com a classe 'hidden' */
+    #cupom-cliente:not(.hidden),
+    #cupom-conferencia:not(.hidden) {
+      display: block !important;
+      position: static !important;
+      transform: none !important;
+      opacity: 1 !important;
+      margin: 0 auto !important;
+      width: 100% !important;
+    }
+
+    .hidden {
+      display: none !important;
     }
 
     @page {
@@ -29,22 +53,33 @@
 
 <div
   id="cupom-cliente"
-  class="hidden print:block print:opacity-100 absolute opacity-0 text-black p-4 font-mono text-sm w-[80mm] bg-white"
+  class="hidden text-black p-4 font-mono text-sm w-[80mm] bg-white"
 >
   <div class="text-center border-b border-dashed border-black pb-2 mb-2">
-    <h2 class="font-black text-2xl uppercase text-center">Meu Restaurante</h2>
-    <p class="text-base text-center">Data: <span id="cli-data"></span></p>
-    <p class="text-base text-center">Tipo: <span id="cli-tipo"></span></p>
+    <h2 class="font-black text-2xl uppercase">Meu Restaurante</h2>
+    <p class="text-base">Data: <span id="cli-data"></span></p>
+    <p class="text-base">Tipo: <span id="cli-tipo"></span></p>
   </div>
 
   <div class="text-center my-6">
-    <h1 id="cli-senha" class="text-5xl font-black text-center">0000</h1>
+    <div
+      class="bg-black text-white py-2 my-2"
+      style="background-color: black !important"
+    >
+      <h1
+        id="cli-senha"
+        class="text-6xl font-black text-center text-white"
+        style="color: white !important"
+      >
+        0000
+      </h1>
+    </div>
     <p class="text-lg uppercase font-bold text-center">Senha do Pedido</p>
   </div>
 
   <table class="w-full text-left mb-4 border-b border-dashed border-black pb-2">
     <thead>
-      <tr class="text-base">
+      <tr class="text-base border-b border-dashed border-black">
         <th class="pb-1">Item</th>
         <th class="text-right pb-1">Subtotal</th>
       </tr>
@@ -64,13 +99,22 @@
 
 <div
   id="cupom-conferencia"
-  class="hidden print:block print:opacity-100 absolute opacity-0 text-black p-1 font-mono w-[58mm] bg-white"
+  class="hidden text-black p-1 font-mono w-[58mm] bg-white"
 >
   <div class="text-center border-b-2 border-black mb-2 pb-2">
     <p class="text-[10px] uppercase font-black tracking-widest">Conferência</p>
     <h2 class="text-xl font-bold leading-none my-1">PEDIDO PRONTO</h2>
-    <div class="bg-black text-white py-1 my-1">
-      <h1 id="conf-senha" class="text-4xl font-black">----</h1>
+    <div
+      class="bg-black text-white py-1 my-1"
+      style="background-color: black !important"
+    >
+      <h1
+        id="conf-senha"
+        class="text-4xl font-black"
+        style="color: white !important"
+      >
+        ----
+      </h1>
     </div>
   </div>
   <div class="my-4">
