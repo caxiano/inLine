@@ -94,18 +94,14 @@ function reimprimirCaixa(id) {
   if (!p) return;
 
   // 1. Controle de Visibilidade: Esconde conferência, mostra cliente
-  const cupomConf = document
-    .getElementById("cupom-conferencia")
-    .classList.add("hidden");
-  const cupomCli = document
-    .getElementById("cupom-cliente")
-    .classList.remove("hidden");
+  const cupomConf = document.getElementById("cupom-conferencia");
+  const cupomCli = document.getElementById("cupom-cliente");
 
-  // cupomConf.classList.add("hidden");
-  // cupomConf.classList.remove("print:block");
+  cupomConf.classList.add("hidden");
+  cupomConf.classList.remove("print:block");
 
-  // cupomCli.classList.remove("hidden");
-  // cupomCli.classList.add("print:block");
+  cupomCli.classList.remove("hidden");
+  cupomCli.classList.add("print:block");
 
   // 2. Preenchimento (IDs cli-...)
   document.getElementById("cli-senha").innerText = p.senha;

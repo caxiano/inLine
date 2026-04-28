@@ -29,7 +29,7 @@
 
 <div
   id="cupom-cliente"
-  class="hidden print:block text-black p-4 font-mono text-sm w-[80mm] mx-auto bg-white"
+  class="hidden print:block print:opacity-100 absolute opacity-0 text-black p-4 font-mono text-sm w-[80mm] bg-white"
 >
   <div class="text-center border-b border-dashed border-black pb-2 mb-2">
     <h2 class="font-black text-2xl uppercase text-center">Meu Restaurante</h2>
@@ -64,7 +64,7 @@
 
 <div
   id="cupom-conferencia"
-  class="hidden print:block text-black p-1 font-mono w-[58mm] mx-auto bg-white"
+  class="hidden print:block print:opacity-100 absolute opacity-0 text-black p-1 font-mono w-[58mm] bg-white"
 >
   <div class="text-center border-b-2 border-black mb-2 pb-2">
     <p class="text-[10px] uppercase font-black tracking-widest">Conferência</p>
@@ -95,6 +95,25 @@
     <div
       class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4"
     >
+      <a
+        href="{% url 'dashboard-central' %}"
+        class="bg-white text-slate-400 p-3 rounded-2xl hover:text-blue-600 shadow-sm border border-slate-200 transition-all group"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-6 w-6"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+          />
+        </svg>
+      </a>
       <h1 class="text-3xl font-black text-slate-800 uppercase italic">
         Gerenciamento de Atendimento
       </h1>
