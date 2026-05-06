@@ -6,7 +6,7 @@ from .views import (
     FinalizarPratoView,CreatePratoAPIView, TMADashboardAPIView,
     AcompanhamentoPedidoView,DashboardView, MonitorPedidosView, MonitorPedidosAPIView,
     RetirarPedidoView,BaixaEntregaView,UpdatePratoAPIView,
-    PainelQuantitativoProducaoAPIView,AtendimentoListaAPIView,
+    PainelQuantitativoProducaoAPIView,AtendimentoListaAPIView, PainelPorPratoView,
 )
 
 urlpatterns = [
@@ -20,7 +20,8 @@ urlpatterns = [
     path('monitor/', MonitorPedidosView.as_view(), name='monitor-cliente'),
     path('atendimento/baixa-entrega/', BaixaEntregaView.as_view(), name='gui-baixa-entrega'),
     path('producao/painel/', TemplateView.as_view(template_name='painel_producao.html'), name='painel-producao'),
-    path('api/v1/atendimento/lista/', AtendimentoListaAPIView.as_view(), name='atendimento-lista'),    
+    path('api/v1/atendimento/lista/', AtendimentoListaAPIView.as_view(), name='atendimento-lista'),
+    path('producao/painel/<str:nome_prato>/', PainelPorPratoView.as_view(), name='painel-por-prato'),    
 
     # API - O JavaScript deve usar esse prefixo
     path('api/v1/pratos/', ListPratosAPIView.as_view()),

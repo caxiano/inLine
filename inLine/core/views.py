@@ -11,6 +11,7 @@ from rest_framework import status
 from django.utils import timezone
 from decimal import Decimal
 from django.db.models import F, Count, Q
+from django.views.generic import ListView
 
 from .services import (
     create_order,
@@ -552,3 +553,27 @@ class PainelQuantitativoProducaoAPIView(APIView):
             return Response(producao_qs, status=200)
         except Exception as e:
             return Response({"error": str(e)}, status=500)
+
+# PAINEL DE PRODUÇÃO POR PRODUTO
+
+class PainelPorPratoView(TemplateView):
+    template_name = 'painel_prato.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        nome_prato = self.kwargs.get('nome_prato')
+        
+        # Busca o objeto prato para pegar o estoque
+        prato = Prato.objects.filter(nome__iexact=nome_prato).first()
+        
+        # Conta quantos itens estão na fila (Produção)
+        qtd_producao = FilaPrato.objects.filter(
+            prato__nome__iexact=nome_prato,
+            pedido__status=Pedido.Status.PRODUCAO, 
+            status=FilaPrato.Status.PENDENTE
+        ).count()
+
+        context['nome_prato'] = nome_prato
+        context['qtd_producao'] = qtd_producao
+        context['qtd_estoque'] = prato.estoque if prato else 0
+        return context
