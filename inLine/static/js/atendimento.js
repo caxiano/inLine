@@ -1,4 +1,10 @@
 let pedidosData = [];
+let pedidosProntosConhecidos = new Set();
+let pedidosProntosNaFila = new Set();
+let filaImpressaoAutomatica = [];
+let impressaoAutomaticaEmAndamento = false;
+let primeiraCargaImpressao = false;
+let fallbackFimImpressao = null;
 
 async function carregarAtendimento() {
   const busca = document.getElementById("input-busca")?.value || "";
@@ -129,15 +135,23 @@ function reimprimirCaixa(id) {
     cli.classList.add("hidden");
   }, 250);
 }
-function dispararImpressaoFisica(p) {
+
+function limparCuponsImpressao() {
+  const cupomCli = document.getElementById("cupom-cliente");
+  const cupomConf = document.getElementById("cupom-conferencia");
+  cupomCli?.classList.add("hidden");
+  cupomConf?.classList.add("hidden");
+}
+
+function prepararCupomConferencia(p) {
   const cupomCli = document.getElementById("cupom-cliente");
   const cupomConf = document.getElementById("cupom-conferencia");
   const confSenha = document.getElementById("conf-senha");
   const confItens = document.getElementById("conf-itens");
 
-  if (!confSenha || !confItens) {
+  if (!cupomCli || !cupomConf || !confSenha || !confItens) {
     console.error("ERRO: Estrutura do cupom de 58mm não encontrada!");
-    return;
+    return false;
   }
 
   // 1. PROTOCOLO DE VISIBILIDADE:
@@ -163,44 +177,69 @@ function dispararImpressaoFisica(p) {
     .join("");
 
   confItens.innerHTML = itensHTML;
+  return true;
+}
+
+function finalizarImpressaoAutomatica() {
+  if (!impressaoAutomaticaEmAndamento) return;
+
+  if (fallbackFimImpressao) {
+    clearTimeout(fallbackFimImpressao);
+    fallbackFimImpressao = null;
+  }
+
+  limparCuponsImpressao();
+  impressaoAutomaticaEmAndamento = false;
+  processarFilaImpressaoAutomatica();
+}
+
+function processarFilaImpressaoAutomatica() {
+  if (impressaoAutomaticaEmAndamento || filaImpressaoAutomatica.length === 0) {
+    return;
+  }
+
+  const proximoPedido = filaImpressaoAutomatica.shift();
+  if (!proximoPedido) return;
+
+  pedidosProntosNaFila.delete(proximoPedido.senha);
+
+  const prontoParaImprimir = prepararCupomConferencia(proximoPedido);
+  if (!prontoParaImprimir) {
+    processarFilaImpressaoAutomatica();
+    return;
+  }
+
+  impressaoAutomaticaEmAndamento = true;
 
   // 3. DISPARO DA IMPRESSÃO
   setTimeout(() => {
     window.print();
-
-    // 4. RESET: Esconde novamente para não vazar na tela após o print
-    cupomConf.classList.add("hidden");
+    // Fallback de segurança caso o browser não dispare `afterprint`.
+    fallbackFimImpressao = setTimeout(finalizarImpressaoAutomatica, 60000);
   }, 300);
 }
+
+function enfileirarImpressaoAutomatica(p) {
+  if (!p?.senha || pedidosProntosNaFila.has(p.senha)) {
+    return;
+  }
+
+  filaImpressaoAutomatica.push(p);
+  pedidosProntosNaFila.add(p.senha);
+  processarFilaImpressaoAutomatica();
+}
+
 function reimprimirConferencia(id) {
   const p = pedidosData.find((x) => x.id === id);
   if (!p) return;
 
-  const cli = document.getElementById("cupom-cliente");
-  const conf = document.getElementById("cupom-conferencia");
-
-  // 1. Prepara os dados
-  document.getElementById("conf-senha").innerText = p.senha;
-
-  // 2. Itens de conferência
-  document.getElementById("conf-itens").innerHTML = p.itens
-    .map(
-      (item) => `
-        <div style="display: flex; justify-content: space-between; border-bottom: 1px solid #000; padding: 4px 0;">
-            <span style="font-size: 18px;">[ ] ${item.qtd || item.quantidade}x ${item.nome}</span>
-        </div>
-    `,
-    )
-    .join("");
-
-  // 3. Alterna as classes
-  cli.classList.add("hidden"); // Esconde caixa
-  conf.classList.remove("hidden"); // Mostra conferência
+  const prontoParaImprimir = prepararCupomConferencia(p);
+  if (!prontoParaImprimir) return;
 
   // 4. Imprime
   setTimeout(() => {
     window.print();
-    conf.classList.add("hidden"); // Esconde após abrir a janela de print
+    limparCuponsImpressao();
   }, 250);
 }
 
@@ -247,9 +286,6 @@ function getCsrfToken() {
   return cookieValue;
 }
 
-let pedidosProntosConhecidos = new Set();
-let primeiraCargaImpressao = false;
-
 async function monitorarPedidosParaImpressao() {
   try {
     // Esta API deve retornar os pedidos que acabaram de ser FINALIZADOS na cozinha
@@ -269,8 +305,7 @@ async function monitorarPedidosParaImpressao() {
       if (!pedidosProntosConhecidos.has(p.senha)) {
         console.log(`Imprimindo automaticamente pedido pronto: #${p.senha}`);
 
-        // Chamamos a função de impressão que você já possui
-        dispararImpressaoFisica(p);
+        enfileirarImpressaoAutomatica(p);
 
         // Registra para não imprimir de novo
         pedidosProntosConhecidos.add(p.senha);
@@ -284,14 +319,16 @@ async function monitorarPedidosParaImpressao() {
   }
 }
 
+window.addEventListener("afterprint", finalizarImpressaoAutomatica);
+
 // Inicia o monitoramento
 setInterval(monitorarPedidosParaImpressao, 7000);
 
 // Eventos de Busca
 document
   .getElementById("input-busca")
-  .addEventListener("input", carregarAtendimento);
+  ?.addEventListener("input", carregarAtendimento);
 document
   .getElementById("filtro-status")
-  .addEventListener("change", carregarAtendimento);
+  ?.addEventListener("change", carregarAtendimento);
 setInterval(carregarAtendimento, 15000); // Refresh automático a cada 15s
