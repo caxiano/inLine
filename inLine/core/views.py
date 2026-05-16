@@ -366,7 +366,7 @@ class AcompanhamentoPedidoView(View):
 # Painel central
 class DashboardView(View):
     def get(self, request):
-        hoje = timezone.now().date()
+        hoje = timezone.localdate()
         total_geral = FilaPrato.objects.filter(created_at__date=hoje).count()
 
         # Busca pratos e anota as contagens básicas

@@ -143,13 +143,22 @@ function limparCuponsImpressao() {
   cupomConf?.classList.add("hidden");
 }
 
+function formatarHoraAtualImpressao() {
+  return new Date().toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 function prepararCupomConferencia(p) {
   const cupomCli = document.getElementById("cupom-cliente");
   const cupomConf = document.getElementById("cupom-conferencia");
   const confSenha = document.getElementById("conf-senha");
   const confItens = document.getElementById("conf-itens");
+  const confSaidaHora = document.getElementById("conf-saida-hora");
 
-  if (!cupomCli || !cupomConf || !confSenha || !confItens) {
+  if (!cupomCli || !cupomConf || !confSenha || !confItens || !confSaidaHora) {
     console.error("ERRO: Estrutura do cupom de 58mm não encontrada!");
     return false;
   }
@@ -161,6 +170,7 @@ function prepararCupomConferencia(p) {
 
   // 2. PREENCHIMENTO DOS DADOS
   confSenha.innerText = p.senha;
+  confSaidaHora.innerText = formatarHoraAtualImpressao();
 
   const listaItens = p.itens || p.itens_resumo || [];
   const itensHTML = listaItens
