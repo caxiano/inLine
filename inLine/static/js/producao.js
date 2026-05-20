@@ -1,5 +1,6 @@
 // static/js/producao.js
 const itensEmFinalizacao = new Set();
+let painelAtualizando = false;
 
 function atualizarEstadoBotaoFinalizacao(filaId, emFinalizacao) {
   const botao = document.querySelector(`[data-fila-id="${filaId}"]`);
@@ -42,9 +43,10 @@ async function finalizarItem(filaId) {
 // 2. Função de Atualização do Painel
 async function atualizarPainel() {
   const container = document.getElementById("painel-estacoes");
-  if (!container) return;
+  if (!container || painelAtualizando || document.hidden) return;
 
   try {
+    painelAtualizando = true;
     const res = await fetch("/api/v1/fila/painel/");
     const data = await res.json();
     const pendentes = data.pendentes || [];
@@ -90,6 +92,8 @@ async function atualizarPainel() {
       });
   } catch (e) {
     console.error("Erro ao atualizar painel:", e);
+  } finally {
+    painelAtualizando = false;
   }
 }
 
@@ -112,5 +116,11 @@ function getCookie(name) {
 // 4. Inicialização
 document.addEventListener("DOMContentLoaded", () => {
   atualizarPainel();
-  setInterval(atualizarPainel, 5000);
+  setInterval(atualizarPainel, 7000);
+});
+
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    atualizarPainel();
+  }
 });
